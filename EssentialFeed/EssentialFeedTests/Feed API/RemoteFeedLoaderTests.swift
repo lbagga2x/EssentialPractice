@@ -47,7 +47,7 @@ class RemoteFeedLoaderTests: XCTestCase {
 		let samples = [199, 201, 300, 400, 500]
 		
 		samples.enumerated().forEach { index, code in
-			expect(sut, toCompleteWith: .failure(RemoteFeedLoader.Error.invalidData), when: {
+            expect(sut, toCompleteWith: failure(.invalidData), when: {
 				let json = makeItemsJSON([])
 				client.complete(withStatusCode: code, data: json, at: index)
 			})
@@ -57,7 +57,7 @@ class RemoteFeedLoaderTests: XCTestCase {
 	func test_load_deliversErrorOn200HTTPResponseWithInvalidJSON() {
 		let (sut, client) = makeSUT()
 		
-		expect(sut, toCompleteWith: .failure(RemoteFeedLoader.Error.invalidData), when: {
+        expect(sut, toCompleteWith: failure(.invalidData), when: {
 			let invalidJSON = Data(bytes: "invalid json".utf8)
 			client.complete(withStatusCode: 200, data: invalidJSON)
 		})
@@ -116,6 +116,10 @@ class RemoteFeedLoaderTests: XCTestCase {
 		trackForMemoryLeaks(client, file: file, line: line)
 		return (sut, client)
 	}
+    
+    private func failure(_ error: RemoteFeedLoader.Error) -> RemoteFeedLoader.Result {
+        return .failure(error)
+    }
 	
 	private func trackForMemoryLeaks(_ instance: AnyObject, file: StaticString = #file, line: UInt = #line) {
 		addTeardownBlock { [weak instance] in
@@ -152,8 +156,8 @@ class RemoteFeedLoaderTests: XCTestCase {
             case let (.success(receivedItems), .success(expectedItems)):
                 XCTAssertEqual(receivedItems, expectedItems, file: file, line: line)
                 
-            case let (.failure(receivedItems), .failure(expectedItems)):
-                XCTAssertEqual(receivedItems, expectedItems, file: file, line: line)
+            case let (.failure(receivedError as RemoteFeedLoader.Error), .failure(expectedError as RemoteFeedLoader.Error)):
+                XCTAssertEqual(receivedError, expectedError, file: file, line: line)
                 
             default:
                 XCTFail("Expected Result \(expectedResult) got \(receivedResult) result instead", file: file, line: line )
