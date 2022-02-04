@@ -23,15 +23,6 @@ class URLSessionHttpClent {
 
 class URLSessionHttpClientTest: XCTestCase {
     
-    func test_load_Url() {
-        let url = URL(string: "https://www.yahoo.com")!
-        
-        let session = UrlSessionSpy()
-        let client = URLSessionHttpClent(session: session)
-        client.get(from: url)
-        XCTAssertEqual(session.receivedUrls, [url])
-    }
-    
     func test_load_Resume() {
         let url = URL(string: "https://www.yahoo.com")!
         
@@ -48,11 +39,9 @@ class URLSessionHttpClientTest: XCTestCase {
     
     /// Mark :  Helper
     private class UrlSessionSpy: URLSession {
-        var receivedUrls = [URL]()
         var stubs = [URL: URLSessionDataTask]()
         
         override func dataTask(with url: URL, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask {
-            receivedUrls.append(url)
             return stubs[url] ?? URLSPYSessionDataTask()
         }
         
