@@ -10,9 +10,17 @@ import Foundation
 import XCTest
 import EssentialFeed
 
+protocol HttpSession {
+    func dataTask(with url: URL, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> HttpSessionDataTask
+}
+
+protocol HttpSessionDataTask {
+    func resume()
+}
+
 class URLSessionHttpClent {
-    private let session: URLSession
-    init(session: URLSession) {
+    private let session: HttpSession
+    init(session: HttpSession) {
         self.session = session
     }
     
@@ -68,15 +76,15 @@ class URLSessionHttpClientTest: XCTestCase {
     
     
     /// Mark :  Helper
-    private class UrlSessionSpy: URLSession {
+    private class UrlSessionSpy: HttpSession {
         var stubs = [URL: Stub]()
         
         struct Stub {
-            let dataTask: URLSessionDataTask
+            let dataTask: HttpSessionDataTask
             let error: Error?
         }
         
-        override func dataTask(with url: URL, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask {
+        func dataTask(with url: URL, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> HttpSessionDataTask {
             guard let stub = stubs[url] else {
                 fatalError("couldn't finsd stub")
             }
@@ -84,21 +92,21 @@ class URLSessionHttpClientTest: XCTestCase {
             return stub.dataTask
         }
         
-        func stub(url: URL, task: URLSessionDataTask = FakeUrlSessionDataTask(), error: NSError? = nil) {
+        func stub(url: URL, task: HttpSessionDataTask = FakeUrlSessionDataTask(), error: NSError? = nil) {
             stubs[url] = Stub(dataTask: task, error: error)
         }
     }
     
-    private class URLSPYSessionDataTask: URLSessionDataTask {
-        override func resume() {
+    private class URLSPYSessionDataTask: HttpSessionDataTask {
+         func resume() {
             
         }
     }
     
-    private class FakeUrlSessionDataTask: URLSessionDataTask {
+    private class FakeUrlSessionDataTask: HttpSessionDataTask {
         var resumeCount = 0
         
-        override func resume() {
+         func resume() {
             resumeCount += 1
         }
     }
