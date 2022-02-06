@@ -29,8 +29,17 @@ class URLSessionHttpClent {
 
 class URLSessionHttpClientTest: XCTestCase {
     
-    func test_getFromUrl_PerformGetRequestWithUrl() {
+    override class func setUp() {
+        super.setUp()
         UrlProtocolStub.startInterceptingRequest()
+    }
+    
+    override class func tearDown() {
+        super.tearDown()
+        UrlProtocolStub.stopInterceptingRequest()
+    }
+    
+    func test_getFromUrl_PerformGetRequestWithUrl() {
         let url = URL(string: "https://www.yahoo.com")!
         
         let exp = expectation(description: "Wait for completion")
@@ -41,24 +50,18 @@ class URLSessionHttpClientTest: XCTestCase {
             exp.fulfill()
         }
         
-        URLSessionHttpClent().get(from: url) { _ in }
-        
+        makeSut().get(from: url) { _ in }
         wait(for: [exp], timeout: 1.0)
-        UrlProtocolStub.stopInterceptingRequest()
     }
     
     func test_getFromUrl_failsOnRequestError() {
-        UrlProtocolStub.startInterceptingRequest()
         
         let url = URL(string: "https://www.yahoo.com")!
         let error = NSError(domain: "Any Error", code: 1)
         UrlProtocolStub.stub(data: nil, response: nil, error: error)
         
-        let sut = URLSessionHttpClent()
         let exp = expectation(description: "Wait for completion")
-        
-        
-        sut.get(from: url) { result in
+        makeSut().get(from: url) { result in
             switch result {
             case let .failure(failureError as NSError):
                 XCTAssertEqual(failureError.domain, error.domain)
@@ -68,11 +71,13 @@ class URLSessionHttpClientTest: XCTestCase {
             exp.fulfill()
         }
         wait(for: [exp], timeout: 1.0)
-        
-        UrlProtocolStub.stopInterceptingRequest()
     }
     
     /// Mark :  Helper
+    
+    func makeSut() -> URLSessionHttpClent {
+        return URLSessionHttpClent()
+    }
     private class UrlProtocolStub: URLProtocol {
         static var stub: Stub?
         static var requestOberver: ((URLRequest) -> Void)?
