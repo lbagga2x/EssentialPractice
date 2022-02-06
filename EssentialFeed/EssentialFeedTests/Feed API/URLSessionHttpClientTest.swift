@@ -29,6 +29,24 @@ class URLSessionHttpClent {
 
 class URLSessionHttpClientTest: XCTestCase {
     
+    func test_getFromUrl_PerformGetRequestWithUrl() {
+        UrlProtocolStub.startInterceptingRequest()
+        let url = URL(string: "https://www.yahoo.com")!
+        
+        let exp = expectation(description: "Wait for completion")
+        
+        UrlProtocolStub.requestOberver = { request in
+            XCTAssertEqual(request.url, url)
+            XCTAssertEqual(request.httpMethod, "GET")
+            exp.fulfill()
+        }
+        
+        URLSessionHttpClent().get(from: url) { _ in }
+        
+        wait(for: [exp], timeout: 1.0)
+        UrlProtocolStub.stopInterceptingRequest()
+    }
+    
     func test_getFromUrl_failsOnRequestError() {
         UrlProtocolStub.startInterceptingRequest()
         
@@ -57,6 +75,7 @@ class URLSessionHttpClientTest: XCTestCase {
     /// Mark :  Helper
     private class UrlProtocolStub: URLProtocol {
         static var stub: Stub?
+        static var requestOberver: ((URLRequest) -> Void)?
         
         struct Stub {
             let data: Data?
@@ -68,6 +87,10 @@ class URLSessionHttpClientTest: XCTestCase {
             stub = Stub(data: data, response: response, error: error)
         }
         
+        static func obersverRequest(requestOberver: @escaping ((URLRequest) -> Void)) {
+            self.requestOberver = requestOberver
+        }
+        
         static func startInterceptingRequest() {
             UrlProtocolStub.registerClass(UrlProtocolStub.self)
         }
@@ -75,6 +98,7 @@ class URLSessionHttpClientTest: XCTestCase {
         static func stopInterceptingRequest() {
             UrlProtocolStub.unregisterClass(UrlProtocolStub.self)
             stub = nil
+            requestOberver = nil
         }
         
         override class func canInit(with request: URLRequest) -> Bool {
@@ -82,6 +106,7 @@ class URLSessionHttpClientTest: XCTestCase {
         }
         
         override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+            requestOberver?(request)
             return request
         }
         
