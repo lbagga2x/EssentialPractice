@@ -10,6 +10,7 @@ import Foundation
 import XCTest
 import EssentialFeed
 
+struct UnexpectedError: Error {}
 class URLSessionHttpClent {
     private let session: URLSession
     
@@ -21,7 +22,10 @@ class URLSessionHttpClent {
         session.dataTask(with: url) { _, _, error in
             if let error = error {
                 completion(.failure(error))
+            } else {
+                completion(.failure(UnexpectedError()))
             }
+            
             
         }.resume()
     }
@@ -63,6 +67,21 @@ class URLSessionHttpClientTest: XCTestCase {
             switch result {
             case let .failure(failureError as NSError):
                 XCTAssertEqual(failureError.domain, error.domain)
+            default:
+                XCTFail("This shouldn't fail")
+            }
+            exp.fulfill()
+        }
+        wait(for: [exp], timeout: 1.0)
+    }
+    
+    func test_getFromAllUrl_failsOnAllNilValue() {
+        UrlProtocolStub.stub(data: nil, response: nil, error: nil)
+        let exp = expectation(description: "Wait for completion")
+        makeSut().get(from: anyUrl()) { result in
+            switch result {
+            case let .failure(_):
+               break
             default:
                 XCTFail("This shouldn't fail")
             }
