@@ -34,7 +34,7 @@ class URLSessionHttpClientTest: XCTestCase {
         
         let url = URL(string: "https://www.yahoo.com")!
         let error = NSError(domain: "Any Error", code: 1)
-        UrlProtocolStub.stub(url: url, data: nil, response: nil, error: error)
+        UrlProtocolStub.stub(data: nil, response: nil, error: error)
         
         let sut = URLSessionHttpClent()
         let exp = expectation(description: "Wait for completion")
@@ -56,7 +56,7 @@ class URLSessionHttpClientTest: XCTestCase {
     
     /// Mark :  Helper
     private class UrlProtocolStub: URLProtocol {
-        static var stubs = [URL: Stub]()
+        static var stub: Stub?
         
         struct Stub {
             let data: Data?
@@ -64,8 +64,8 @@ class URLSessionHttpClientTest: XCTestCase {
             let error: Error?
         }
         
-        static func stub(url: URL, data: Data?, response: URLResponse?, error: NSError? = nil) {
-            stubs[url] = Stub(data: data, response: response, error: error)
+        static func stub(data: Data?, response: URLResponse?, error: NSError? = nil) {
+            stub = Stub(data: data, response: response, error: error)
         }
         
         static func startInterceptingRequest() {
@@ -74,14 +74,11 @@ class URLSessionHttpClientTest: XCTestCase {
         
         static func stopInterceptingRequest() {
             UrlProtocolStub.unregisterClass(UrlProtocolStub.self)
-            stubs = [:]
+            stub = nil
         }
         
         override class func canInit(with request: URLRequest) -> Bool {
-            guard let url = request.url else {
-                return false
-            }
-            return UrlProtocolStub.stubs[url] != nil
+            return true
         }
         
         override class func canonicalRequest(for request: URLRequest) -> URLRequest {
@@ -89,7 +86,7 @@ class URLSessionHttpClientTest: XCTestCase {
         }
         
         override func startLoading() {
-            guard let url = request.url, let stub = UrlProtocolStub.stubs[url] else {
+            guard let stub = UrlProtocolStub.stub else {
                 return
             }
             if let error = stub.error {
@@ -112,4 +109,3 @@ class URLSessionHttpClientTest: XCTestCase {
         }
     }
 }
-
