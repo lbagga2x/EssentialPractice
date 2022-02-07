@@ -10,37 +10,15 @@ import Foundation
 import XCTest
 import EssentialFeed
 
-struct UnexpectedError: Error {}
-class URLSessionHttpClent {
-    private let session: URLSession
-    
-    init(session: URLSession = .shared) {
-        self.session = session
-    }
-
-    func get(from url: URL, completion: @escaping (HTTPClientResult) -> Void) {
-        session.dataTask(with: url) { data, response, error in
-            if let error = error {
-                completion(.failure(error))
-            } else if let data = data, data.count > 0, let response = response as? HTTPURLResponse {
-                completion(.success(data, response))
-            } else {
-                completion(.failure(UnexpectedError()))
-            }
-            
-            
-        }.resume()
-    }
-}
 
 class URLSessionHttpClientTest: XCTestCase {
     
-    override class func setUp() {
+    override func setUp() {
         super.setUp()
         UrlProtocolStub.startInterceptingRequest()
     }
     
-    override class func tearDown() {
+    override func tearDown() {
         super.tearDown()
         UrlProtocolStub.stopInterceptingRequest()
     }
@@ -74,24 +52,44 @@ class URLSessionHttpClientTest: XCTestCase {
     func test_getFromURL_successOnHttpResponseWithData() {
         
         let data = Data(bytes: "anyData".utf8)
-        let response = HTTPURLResponse(url: anyUrl(), mimeType: nil, expectedContentLength: 1, textEncodingName: nil)
-        UrlProtocolStub.stub(data: data, response: response, error: nil)
+        let response = getAnyResponse()
+            
+        let receivedData = resultValueFor(data: data, response: response, error: nil)
+        
+        XCTAssertEqual(data, receivedData?.data)
+        XCTAssertEqual(response.url, receivedData?.response.url)
+    }
+    
+    func test_getFromUrl_successWithEmptyDataOnHttpResponseWithNilData() {
+        let response = getAnyResponse()
+
+        let receivedData = resultValueFor(data: nil, response: response, error: nil)
+        
+        XCTAssertEqual(Data(), receivedData?.data)
+        XCTAssertEqual(response.url, receivedData?.response.url)
+        XCTAssertEqual(response.statusCode, receivedData?.response.statusCode)
+    }
+    
+    /// Mark :  Helper
+    
+    func resultValueFor(data: Data?, response: URLResponse?, error: Error?, file: StaticString = #file, line: UInt = #line) -> (data: Data, response: HTTPURLResponse)? {
+        UrlProtocolStub.stub(data: data, response: response, error: error)
         
         let exp = expectation(description: "Wait for completion")
-        makeSut().get(from: anyUrl()) { result in
+        
+        var receivedValues: (data: Data, response: HTTPURLResponse)?
+        makeSut(file: file, line: line).get(from: anyUrl()) { result in
             switch result {
-            case .success(let receivedData, let receivedResponse):
-                XCTAssertEqual(data, receivedData)
-                XCTAssertEqual(response.url, receivedResponse.url)
+            case let .success(data, response):
+                receivedValues = (data, response)
             default:
-                XCTFail("Thus shouldn't fail. Needed result")
+                XCTFail("This shouldn't fail", file: file, line: line)
             }
             exp.fulfill()
         }
         wait(for: [exp], timeout: 1.0)
+        return receivedValues
     }
-    
-    /// Mark :  Helper
     
     func resultErrorFor(data: Data?, response: URLResponse?, error: Error?, file: StaticString = #file, line: UInt = #line) -> Error? {
         UrlProtocolStub.stub(data: data, response: response, error: error)
@@ -112,7 +110,7 @@ class URLSessionHttpClientTest: XCTestCase {
         return receivedError
     }
     
-    func makeSut(file: StaticString = #file, line: UInt = #line) -> URLSessionHttpClent {
+    func makeSut(file: StaticString = #file, line: UInt = #line) -> HTTPClient {
         let client = URLSessionHttpClent()
         trackForMemoryLeaks(client, file: file, line: line)
         return client
@@ -120,6 +118,10 @@ class URLSessionHttpClientTest: XCTestCase {
     
     func anyUrl() -> URL {
         return URL(string: "https://www.yahoo.com")!
+    }
+    
+    func getAnyResponse() -> HTTPURLResponse {
+        return HTTPURLResponse(url: anyUrl(), mimeType: nil, expectedContentLength: 1, textEncodingName: nil)
     }
     
     private class UrlProtocolStub: URLProtocol {
