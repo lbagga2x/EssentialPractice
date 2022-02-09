@@ -157,11 +157,15 @@ class URLSessionHttpClientTest: XCTestCase {
         }
         
         override class func canonicalRequest(for request: URLRequest) -> URLRequest {
-            requestOberver?(request)
             return request
         }
         
         override func startLoading() {
+            if let requestObserver = UrlProtocolStub.requestOberver {
+                client?.urlProtocolDidFinishLoading(self)
+                return requestObserver(request)
+            }
+            
             guard let stub = UrlProtocolStub.stub else {
                 return
             }
